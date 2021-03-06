@@ -42,29 +42,34 @@ func (c *Chip8) LoadRom(path string) {
 
 // Run begins execution of program instructions.
 func (c *Chip8) Run() {
-	for i := 0; i < 50; i++ {
+	for {
 		c.cpu.Cycle(&c.mem)
 	}
 }
 
 // CPU used by the Chip-8 emulator
 type CPU struct {
-	v      []uint8 // V registers - general purpose
-	i      uint16  // I register - general purpose
-	pc     uint16  // program counter
-	sp     uint8   // stack pointer
-	dt     uint8   // delay timer
-	st     uint8   // sound timer
-	opcode Opcode  // 2 bytes representing current opcode
+	v      []uint8  // V registers - general purpose
+	i      uint16   // I register - general purpose
+	pc     uint16   // program counter
+	stack  []uint16 // program stack
+	sp     uint8    // stack pointer
+	dt     uint8    // delay timer
+	st     uint8    // sound timer
+	opcode Opcode   // 2 bytes representing current opcode
 }
+
+const numRegisters = 16
+const stackDepth = 16
 
 // NewCPU returns a Chip-8 CPU with cleared registers, and initialized program
 // counter.
 func NewCPU() *CPU {
 	return &CPU{
-		v:      make([]uint8, 16),
+		v:      make([]uint8, numRegisters),
 		i:      0,
 		pc:     memoryProgramBegin,
+		stack:  make([]uint16, stackDepth),
 		sp:     0,
 		dt:     0,
 		st:     0,
@@ -81,13 +86,23 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 	// Increment the program counter
 	cpu.pc += 2
 
-	//Decode the opcode
-	//op := opcode.op()
-
 	// Execute the instruction
 	switch cpu.opcode & 0xF000 {
+	case 0x0000:
+		switch cpu.opcode.nnn() {
+		case 0x0E0:
+			cpu.Exec00E0()
+		case 0x0EE:
+			cpu.Exec00EE()
+		default:
+			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+		}
 	case 0x1000:
 		cpu.Exec1NNN()
+	case 0x2000:
+		cpu.Exec2NNN()
+	case 0x3000:
+		cpu.Exec3XNN()
 	case 0x6000:
 		cpu.Exec6XNN()
 	case 0x7000:
@@ -96,6 +111,8 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 		switch cpu.opcode.n() {
 		case 0x0:
 			cpu.Exec8XY0()
+		case 0x3:
+			cpu.Exec8XY3()
 		default:
 			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
 		}
@@ -107,6 +124,8 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 			cpu.ExecFX55(memory)
 		case 0x65:
 			cpu.ExecFX65(memory)
+		case 0x1E:
+			cpu.ExecFX1E()
 		default:
 			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
 		}
@@ -120,6 +139,24 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 // Chip-8 instructions found at:
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#00E0
 
+// 00E0 - CLS
+// Clear the display.
+func (cpu *CPU) Exec00EE() {
+	fmt.Printf("%#x: %#x CLS\n", cpu.pc-2, cpu.opcode)
+
+	cpu.sp--
+	cpu.pc = cpu.stack[cpu.sp]
+}
+
+// 00EE - RET
+// Return from a subroutine.
+func (cpu *CPU) Exec00EE() {
+	fmt.Printf("%#x: %#x RET\n", cpu.pc-2, cpu.opcode)
+
+	cpu.sp--
+	cpu.pc = cpu.stack[cpu.sp]
+}
+
 // 1NNN - JP addr
 // Set the program counter to NNN.
 func (cpu *CPU) Exec1NNN() {
@@ -128,6 +165,30 @@ func (cpu *CPU) Exec1NNN() {
 	fmt.Printf("%#x: %#x JP %#v\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.pc = nnn
+}
+
+// 2NNN - CALL addr
+// Call subroutine at NNN.
+func (cpu *CPU) Exec2NNN() {
+	nnn := cpu.opcode.nnn()
+
+	fmt.Printf("%#x: %#x CALL %#v\n", cpu.pc-2, cpu.opcode, nnn)
+
+	cpu.stack[cpu.sp] = cpu.pc
+	cpu.sp++
+	cpu.pc = nnn
+}
+
+// 3XNN - SE VX, byte
+// Skip next instruction if VX == NN.
+func (cpu *CPU) Exec3XNN() {
+	x := cpu.opcode.x()
+	nn := cpu.opcode.nn()
+
+	fmt.Printf("%#x: %#x SE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
+	if cpu.v[x] == nn {
+		cpu.pc += 2
+	}
 }
 
 // 6XNN - LD VX, byte
@@ -161,6 +222,17 @@ func (cpu *CPU) Exec8XY0() {
 	fmt.Printf("%#x: %#x LD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	cpu.v[x] = cpu.v[y]
+}
+
+// 8XY3 - XOR VX, VY
+// Set VX to VX XOR VY.
+func (cpu *CPU) Exec8XY3() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x XOR V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	cpu.v[x] = cpu.v[x] ^ cpu.v[y]
 }
 
 // ANNN - LD I, addr
@@ -197,6 +269,16 @@ func (cpu *CPU) ExecFX65(memory *[]uint8) {
 		cpu.v[i] = (*memory)[int(cpu.i)+i]
 	}
 	cpu.i = cpu.i + uint16(x) + 1
+}
+
+// FX1E - ADD I, VX
+// Add the values of I and VX, store the result in I.
+func (cpu *CPU) ExecFX1E() {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x ADD I, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.i = cpu.i + uint16(cpu.v[x])
 }
 
 type Opcode uint16

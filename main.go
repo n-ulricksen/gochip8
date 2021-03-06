@@ -15,9 +15,8 @@ func main() {
 	fmt.Printf("Loading ROM from %s\n", rompath)
 	chip8.LoadRom(rompath)
 
-	fmt.Printf("Chip-8 machine: %#v\n", chip8)
-
-	fmt.Println("Starting program")
+	fmt.Println("Starting program...")
+	fmt.Println()
 
 	chip8.Run()
 

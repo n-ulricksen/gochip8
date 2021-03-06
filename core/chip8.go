@@ -49,24 +49,26 @@ func (c *Chip8) Run() {
 
 // CPU used by the Chip-8 emulator
 type CPU struct {
-	v  []uint8 // V registers - general purpose
-	i  uint16  // I register - general purpose
-	pc uint16  // program counter
-	sp uint8   // stack pointer
-	dt uint8   // delay timer
-	st uint8   // sound timer
+	v      []uint8 // V registers - general purpose
+	i      uint16  // I register - general purpose
+	pc     uint16  // program counter
+	sp     uint8   // stack pointer
+	dt     uint8   // delay timer
+	st     uint8   // sound timer
+	opcode Opcode  // 2 bytes representing current opcode
 }
 
 // NewCPU returns a Chip-8 CPU with cleared registers, and initialized program
 // counter.
 func NewCPU() *CPU {
 	return &CPU{
-		v:  make([]uint8, 16),
-		i:  0,
-		pc: memoryProgramBegin,
-		sp: 0,
-		dt: 0,
-		st: 0,
+		v:      make([]uint8, 16),
+		i:      0,
+		pc:     memoryProgramBegin,
+		sp:     0,
+		dt:     0,
+		st:     0,
+		opcode: 0x0000,
 	}
 }
 
@@ -74,41 +76,45 @@ func NewCPU() *CPU {
 func (cpu *CPU) Cycle(memory *[]uint8) {
 	// Load the 2-byte opcode
 	bx := (*memory)[cpu.pc : cpu.pc+2]
-	opcode := Opcode(binary.BigEndian.Uint16(bx))
+	cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
 
 	// Increment the program counter
 	cpu.pc += 2
 
-	// Decode the opcode
-	op := opcode.op()
+	//Decode the opcode
+	//op := opcode.op()
 
 	// Execute the instruction
-	switch op {
-	case op1NNN:
-		cpu.Exec1NNN(opcode)
-	case op6XNN:
-		cpu.Exec6XNN(opcode)
-	case op7XNN:
-		cpu.Exec7XNN(opcode)
-	case op8XY0:
-		cpu.Exec8XY0(opcode)
-	case opANNN:
-		cpu.ExecANNN(opcode)
-	case opFXmm:
-		mm := opcode.nn()
-		switch mm {
-		case 0x55:
-			cpu.ExecFX55(opcode, memory)
-		case 0x65:
-			cpu.ExecFX65(opcode, memory)
+	switch cpu.opcode & 0xF000 {
+	case 0x1000:
+		cpu.Exec1NNN()
+	case 0x6000:
+		cpu.Exec6XNN()
+	case 0x7000:
+		cpu.Exec7XNN()
+	case 0x8000:
+		switch cpu.opcode.n() {
+		case 0x0:
+			cpu.Exec8XY0()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", opcode)
+			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+		}
+	case 0xA000:
+		cpu.ExecANNN()
+	case 0xF000:
+		switch cpu.opcode.nn() {
+		case 0x55:
+			cpu.ExecFX55(memory)
+		case 0x65:
+			cpu.ExecFX65(memory)
+		default:
+			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
 		}
 	default:
-		log.Fatalf("Invalid opcode: %#v\n", opcode)
+		log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
 	}
 
-	fmt.Printf("CPU: %#v\n\n", *cpu)
+	//fmt.Printf("CPU: %#v\n\n", *cpu)
 }
 
 // Chip-8 instructions found at:
@@ -116,63 +122,64 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 
 // 1NNN - JP addr
 // Set the program counter to NNN.
-func (cpu *CPU) Exec1NNN(opcode Opcode) {
-	nnn := opcode.nnn()
+func (cpu *CPU) Exec1NNN() {
+	nnn := cpu.opcode.nnn()
 
-	fmt.Printf("%#x: %#x JP %#v\n", cpu.pc-2, opcode, nnn)
+	fmt.Printf("%#x: %#x JP %#v\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.pc = nnn
 }
 
 // 6XNN - LD VX, byte
 // Load the value NN into register VX.
-func (cpu *CPU) Exec6XNN(opcode Opcode) {
-	x := opcode.x()
-	nn := opcode.nn()
+func (cpu *CPU) Exec6XNN() {
+	x := cpu.opcode.x()
+	nn := cpu.opcode.nn()
 
-	fmt.Printf("%#x: %#x LD V%d, %#v\n", cpu.pc-2, opcode, x, nn)
+	fmt.Printf("%#x: %#x LD V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
 
 	cpu.v[x] = nn
 }
 
 // 7XNN - ADD VX, byte
 // Add the value NN to the value found in register VX, store the result in VX.
-func (cpu *CPU) Exec7XNN(opcode Opcode) {
-	x := opcode.x()
-	nn := opcode.nn()
+func (cpu *CPU) Exec7XNN() {
+	x := cpu.opcode.x()
+	nn := cpu.opcode.nn()
 
-	fmt.Printf("%#x: %#x ADD V%d, %#v\n", cpu.pc-2, opcode, x, nn)
+	fmt.Printf("%#x: %#x ADD V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
 
 	cpu.v[x] += nn
 }
 
 // 8XY0 - LD VX, VY
 // Store the value of register VY in register VX.
-func (cpu *CPU) Exec8XY0(opcode Opcode) {
-	x := opcode.x()
-	y := opcode.y()
+func (cpu *CPU) Exec8XY0() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x LD V%d, V%d\n", cpu.pc-2, opcode, x, y)
+	fmt.Printf("%#x: %#x LD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	cpu.v[x] = cpu.v[y]
 }
 
 // ANNN - LD I, addr
 // Store the value of nnn in register I.
-func (cpu *CPU) ExecANNN(opcode Opcode) {
-	nnn := opcode.nnn()
+func (cpu *CPU) ExecANNN() {
+	nnn := cpu.opcode.nnn()
 
-	fmt.Printf("%#x: %#x LD I, %#x\n", cpu.pc-2, opcode, nnn)
+	fmt.Printf("%#x: %#x LD I, %#x\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.i = nnn
 }
 
 // FX55 - LD [I], VX
 // Store registers V0 through VX in memory starting at location I.
-func (cpu *CPU) ExecFX55(opcode Opcode, memory *[]uint8) {
-	x := opcode.x()
+func (cpu *CPU) ExecFX55(memory *[]uint8) {
+	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD [I], V%d\n", cpu.pc-2, opcode, x)
+	fmt.Printf("%#x: %#x LD [I], V%d\n", cpu.pc-2, cpu.opcode, x)
+
 	for i := 0; i <= int(x); i++ {
 		(*memory)[int(cpu.i)+i] = cpu.v[i]
 	}
@@ -181,10 +188,10 @@ func (cpu *CPU) ExecFX55(opcode Opcode, memory *[]uint8) {
 
 // FX65 - LD VX, [I]
 // Load values from memory starting at location I into registers V0 through VX.
-func (cpu *CPU) ExecFX65(opcode Opcode, memory *[]uint8) {
-	x := opcode.x()
+func (cpu *CPU) ExecFX65(memory *[]uint8) {
+	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD V%d, [I]\n", cpu.pc-2, opcode, x)
+	fmt.Printf("%#x: %#x LD V%d, [I]\n", cpu.pc-2, cpu.opcode, x)
 
 	for i := 0; i <= int(x); i++ {
 		cpu.v[i] = (*memory)[int(cpu.i)+i]
@@ -193,21 +200,6 @@ func (cpu *CPU) ExecFX65(opcode Opcode, memory *[]uint8) {
 }
 
 type Opcode uint16
-
-// Available Chip-8 operations
-const (
-	op1NNN Opcode = 0x1000
-	op6XNN Opcode = 0x6000
-	op7XNN Opcode = 0x7000
-	op8XY0 Opcode = 0x8000
-	opANNN Opcode = 0xA000
-	opFXmm Opcode = 0xF000
-)
-
-// decodeOp verifies and returns the given 2-bytes as a valid Chip-8 opcode.
-func (oc Opcode) op() Opcode {
-	return oc & 0xF000
-}
 
 func (oc Opcode) nnn() uint16 {
 	return uint16(oc & 0x0FFF)

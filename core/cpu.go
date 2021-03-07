@@ -134,6 +134,42 @@ func (cpu *CPU) Exec8XY3() {
 	cpu.v[x] = cpu.v[x] ^ cpu.v[y]
 }
 
+// 8XY6 - SHR VX {, VY}
+// Store the value of VY shifted right one bit in register VX. Set register VF to
+// the least significant bit prior to shift.
+func (cpu *CPU) Exec8XY6() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SHR V%d {, V%d}\n", cpu.pc-2, cpu.opcode, x, y)
+
+	// Set carry flag if needed.
+	if cpu.v[x]%2 == 1 {
+		cpu.v[0xF] = 1
+	} else {
+		cpu.v[0xF] = 0
+	}
+	cpu.v[x] = cpu.v[y] >> 1
+}
+
+// 8XYE - SHL VX {, VY}
+// Store the value of VY shifted left one bit in register VX. Set register VF to
+// the most significant bit prior to shift.
+func (cpu *CPU) Exec8XYE() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SHL V%d {, V%d}\n", cpu.pc-2, cpu.opcode, x, y)
+
+	// Set carry flag if needed.
+	if cpu.v[x] >= 128 {
+		cpu.v[0xF] = 1
+	} else {
+		cpu.v[0xF] = 0
+	}
+	cpu.v[x] = cpu.v[y] << 1
+}
+
 // ANNN - LD I, addr
 // Store the value of nnn in register I.
 func (cpu *CPU) ExecANNN() {

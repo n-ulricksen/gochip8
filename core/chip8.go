@@ -7,7 +7,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/n-ulricksen/chip8/display"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -27,12 +26,12 @@ type Chip8 struct {
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
 func NewChip8() *Chip8 {
-	w, h := display.Chip8Width, display.Chip8Height
+	w, h := Chip8Width, Chip8Height
 	return &Chip8{
 		mem:      make([]byte, memorySize),
 		cpu:      NewCPU(),
 		display:  make([]uint8, w*h),
-		renderer: display.NewDisplayRenderer(),
+		renderer: NewDisplayRenderer(),
 	}
 }
 
@@ -54,7 +53,7 @@ func (c *Chip8) LoadRom(path string) {
 
 // Run begins execution of program instructions.
 func (c *Chip8) Run() {
-	vBlankTime := chip8frequency / display.VBlankFreq
+	vBlankTime := chip8frequency / VBlankFreq
 	cycle := 0
 
 	for {
@@ -77,14 +76,14 @@ func (c *Chip8) RenderDisplay() {
 
 	c.renderer.SetDrawColor(0, 255, 0, 255)
 
-	for y := int32(0); y < display.Chip8Height; y++ {
-		for x := int32(0); x < display.Chip8Width; x++ {
-			if c.display[y*display.Chip8Width+x] != 0 {
+	for y := int32(0); y < Chip8Height; y++ {
+		for x := int32(0); x < Chip8Width; x++ {
+			if c.display[y*Chip8Width+x] != 0 {
 				c.renderer.FillRect(&sdl.Rect{
-					X: x * display.DisplayScale,
-					Y: y * display.DisplayScale,
-					W: display.DisplayScale,
-					H: display.DisplayScale,
+					X: x * DisplayScale,
+					Y: y * DisplayScale,
+					W: DisplayScale,
+					H: DisplayScale,
 				})
 			}
 		}
@@ -141,6 +140,10 @@ func (c *Chip8) executeInstruction() {
 			c.cpu.Exec8XY0()
 		case 0x3:
 			c.cpu.Exec8XY3()
+		case 0x6:
+			c.cpu.Exec8XY6()
+		case 0xE:
+			c.cpu.Exec8XYE()
 		default:
 			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 		}

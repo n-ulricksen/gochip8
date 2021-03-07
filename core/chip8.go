@@ -124,14 +124,26 @@ func NewCPU() *CPU {
 
 // Cycle spins the CPU, executing instructions from RAM.
 func (c *Chip8) Cycle() {
-	// Load the 2-byte opcode
-	bx := c.mem[c.cpu.pc : c.cpu.pc+2]
-	c.cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
+	c.getNextInstruction()
 
 	// Increment the program counter
 	c.cpu.pc += 2
 
 	// Execute the instruction
+	c.executeInstruction()
+
+	//fmt.Printf("CPU: %#v\n\n", *cpu)
+}
+
+// getNextInstruction loads the next 2 byte instruction into the CPU from memory.
+func (c *Chip8) getNextInstruction() {
+	bx := c.mem[c.cpu.pc : c.cpu.pc+2]
+	c.cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
+}
+
+// executeInstruction executes the appropriate instruction based on the opcode
+// currently loaded into the CPU.
+func (c *Chip8) executeInstruction() {
 	switch c.cpu.opcode & 0xF000 {
 	case 0x0000:
 		switch c.cpu.opcode.nnn() {
@@ -177,8 +189,6 @@ func (c *Chip8) Cycle() {
 	default:
 		log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 	}
-
-	//fmt.Printf("CPU: %#v\n\n", *cpu)
 }
 
 // Chip-8 instructions found at:

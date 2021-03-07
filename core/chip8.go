@@ -65,8 +65,8 @@ func (c *Chip8) Run() {
 			c.RenderDisplay(&c.display)
 		}
 
-		c.Cycle(&c.mem)
-		time.Sleep(17 * time.Millisecond)
+		c.Cycle()
+		time.Sleep(17 * time.Millisecond) // remove this
 	}
 }
 
@@ -123,9 +123,9 @@ func NewCPU() *CPU {
 }
 
 // Cycle spins the CPU, executing instructions from RAM.
-func (c *Chip8) Cycle(memory *[]uint8) {
+func (c *Chip8) Cycle() {
 	// Load the 2-byte opcode
-	bx := (*memory)[c.cpu.pc : c.cpu.pc+2]
+	bx := c.mem[c.cpu.pc : c.cpu.pc+2]
 	c.cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
 
 	// Increment the program counter
@@ -166,9 +166,9 @@ func (c *Chip8) Cycle(memory *[]uint8) {
 	case 0xF000:
 		switch c.cpu.opcode.nn() {
 		case 0x55:
-			c.cpu.ExecFX55(memory)
+			c.cpu.ExecFX55(&c.mem)
 		case 0x65:
-			c.cpu.ExecFX65(memory)
+			c.cpu.ExecFX65(&c.mem)
 		case 0x1E:
 			c.cpu.ExecFX1E()
 		default:

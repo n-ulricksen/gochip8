@@ -5,22 +5,34 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"time"
+
+	"github.com/n-ulricksen/chip8/display"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
-const memorySize uint16 = 4096
-const memoryProgramBegin uint16 = 0x200
+const (
+	memorySize         uint16 = 4096
+	memoryProgramBegin uint16 = 0x200
+	chip8frequency            = 60 * 8
+)
 
 // The Chip8 emulator
 type Chip8 struct {
-	mem []byte
-	cpu *CPU
+	mem      []byte
+	cpu      *CPU
+	display  []uint8
+	renderer *sdl.Renderer
 }
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
 func NewChip8() *Chip8 {
+	w, h := display.Chip8Width, display.Chip8Height
 	return &Chip8{
-		mem: make([]byte, memorySize),
-		cpu: NewCPU(),
+		mem:      make([]byte, memorySize),
+		cpu:      NewCPU(),
+		display:  make([]uint8, w*h),
+		renderer: display.NewDisplayRenderer(),
 	}
 }
 
@@ -42,9 +54,42 @@ func (c *Chip8) LoadRom(path string) {
 
 // Run begins execution of program instructions.
 func (c *Chip8) Run() {
+	vBlankTime := chip8frequency / display.VBlankFreq
+	cycle := 0
+
 	for {
-		c.cpu.Cycle(&c.mem)
+		cycle++
+
+		if cycle > vBlankTime {
+			cycle = 0
+			c.RenderDisplay(&c.display)
+		}
+
+		c.Cycle(&c.mem)
+		time.Sleep(17 * time.Millisecond)
 	}
+}
+
+func (c *Chip8) RenderDisplay(disp *[]uint8) {
+	c.renderer.SetDrawColor(0, 0, 0, 255)
+	c.renderer.Clear()
+
+	c.renderer.SetDrawColor(0, 255, 0, 255)
+
+	for y := int32(0); y < display.Chip8Height; y++ {
+		for x := int32(0); x < display.Chip8Width; x++ {
+			if (*disp)[y*display.Chip8Width+x] != 0 {
+				c.renderer.FillRect(&sdl.Rect{
+					X: x * display.DisplayScale,
+					Y: y * display.DisplayScale,
+					W: display.DisplayScale,
+					H: display.DisplayScale,
+				})
+			}
+		}
+	}
+
+	c.renderer.Present()
 }
 
 // CPU used by the Chip-8 emulator
@@ -78,59 +123,59 @@ func NewCPU() *CPU {
 }
 
 // Cycle spins the CPU, executing instructions from RAM.
-func (cpu *CPU) Cycle(memory *[]uint8) {
+func (c *Chip8) Cycle(memory *[]uint8) {
 	// Load the 2-byte opcode
-	bx := (*memory)[cpu.pc : cpu.pc+2]
-	cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
+	bx := (*memory)[c.cpu.pc : c.cpu.pc+2]
+	c.cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
 
 	// Increment the program counter
-	cpu.pc += 2
+	c.cpu.pc += 2
 
 	// Execute the instruction
-	switch cpu.opcode & 0xF000 {
+	switch c.cpu.opcode & 0xF000 {
 	case 0x0000:
-		switch cpu.opcode.nnn() {
+		switch c.cpu.opcode.nnn() {
 		case 0x0E0:
-			cpu.Exec00E0()
+			c.cpu.Exec00E0(&c.display)
 		case 0x0EE:
-			cpu.Exec00EE()
+			c.cpu.Exec00EE()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 		}
 	case 0x1000:
-		cpu.Exec1NNN()
+		c.cpu.Exec1NNN()
 	case 0x2000:
-		cpu.Exec2NNN()
+		c.cpu.Exec2NNN()
 	case 0x3000:
-		cpu.Exec3XNN()
+		c.cpu.Exec3XNN()
 	case 0x6000:
-		cpu.Exec6XNN()
+		c.cpu.Exec6XNN()
 	case 0x7000:
-		cpu.Exec7XNN()
+		c.cpu.Exec7XNN()
 	case 0x8000:
-		switch cpu.opcode.n() {
+		switch c.cpu.opcode.n() {
 		case 0x0:
-			cpu.Exec8XY0()
+			c.cpu.Exec8XY0()
 		case 0x3:
-			cpu.Exec8XY3()
+			c.cpu.Exec8XY3()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 		}
 	case 0xA000:
-		cpu.ExecANNN()
+		c.cpu.ExecANNN()
 	case 0xF000:
-		switch cpu.opcode.nn() {
+		switch c.cpu.opcode.nn() {
 		case 0x55:
-			cpu.ExecFX55(memory)
+			c.cpu.ExecFX55(memory)
 		case 0x65:
-			cpu.ExecFX65(memory)
+			c.cpu.ExecFX65(memory)
 		case 0x1E:
-			cpu.ExecFX1E()
+			c.cpu.ExecFX1E()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 		}
 	default:
-		log.Fatalf("Invalid opcode: %#v\n", cpu.opcode)
+		log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 	}
 
 	//fmt.Printf("CPU: %#v\n\n", *cpu)
@@ -141,11 +186,12 @@ func (cpu *CPU) Cycle(memory *[]uint8) {
 
 // 00E0 - CLS
 // Clear the display.
-func (cpu *CPU) Exec00EE() {
+func (cpu *CPU) Exec00E0(disp *[]uint8) {
 	fmt.Printf("%#x: %#x CLS\n", cpu.pc-2, cpu.opcode)
 
-	cpu.sp--
-	cpu.pc = cpu.stack[cpu.sp]
+	for i := range *disp {
+		(*disp)[i] = 0
+	}
 }
 
 // 00EE - RET

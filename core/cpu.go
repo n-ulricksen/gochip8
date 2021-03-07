@@ -25,7 +25,7 @@ func NewCPU() *CPU {
 	return &CPU{
 		v:      make([]uint8, numRegisters),
 		i:      0,
-		pc:     memoryProgramBegin,
+		pc:     programEntryOffset,
 		stack:  make([]uint16, stackDepth),
 		sp:     0,
 		dt:     0,
@@ -121,6 +121,17 @@ func (cpu *CPU) Exec8XY0() {
 	fmt.Printf("%#x: %#x LD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	cpu.v[x] = cpu.v[y]
+}
+
+// 8XY2 - AND VX, VY
+// Store the result of VX AND VY to register VX.
+func (cpu *CPU) Exec8XY2() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x AND V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	cpu.v[x] = cpu.v[x] & cpu.v[y]
 }
 
 // 8XY3 - XOR VX, VY

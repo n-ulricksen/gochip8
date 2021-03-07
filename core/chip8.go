@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 const (
-	memorySize         uint16 = 4096
-	memoryProgramBegin uint16 = 0x200
-	chip8frequency            = 60 * 8
+	memorySize             uint16 = 4096
+	programEntryOffset     uint16 = 0x200
+	characterSpritesOffset uint16 = 0x100
+	chip8frequency                = 60 * 8
 )
 
 // The Chip8 emulator
@@ -27,8 +27,12 @@ type Chip8 struct {
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
 func NewChip8() *Chip8 {
 	w, h := Chip8Width, Chip8Height
+
+	memory := make([]byte, memorySize)
+	copy(memory[characterSpritesOffset:], characterSprites)
+
 	return &Chip8{
-		mem:      make([]byte, memorySize),
+		mem:      memory,
 		cpu:      NewCPU(),
 		display:  make([]uint8, w*h),
 		renderer: NewDisplayRenderer(),
@@ -47,7 +51,7 @@ func (c *Chip8) LoadRom(path string) {
 
 	// Load rom data into RAM
 	for i, data := range romdata {
-		c.mem[int(memoryProgramBegin)+i] = data
+		c.mem[int(programEntryOffset)+i] = data
 	}
 }
 
@@ -65,7 +69,7 @@ func (c *Chip8) Run() {
 		}
 
 		c.Cycle()
-		time.Sleep(17 * time.Millisecond) // remove this
+		//time.Sleep(17 * time.Millisecond) // remove this
 	}
 }
 
@@ -138,6 +142,8 @@ func (c *Chip8) executeInstruction() {
 		switch c.cpu.opcode.n() {
 		case 0x0:
 			c.cpu.Exec8XY0()
+		case 0x2:
+			c.cpu.Exec8XY2()
 		case 0x3:
 			c.cpu.Exec8XY3()
 		case 0x6:

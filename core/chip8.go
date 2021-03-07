@@ -62,7 +62,7 @@ func (c *Chip8) Run() {
 
 		if cycle > vBlankTime {
 			cycle = 0
-			c.RenderDisplay(&c.display)
+			c.RenderDisplay()
 		}
 
 		c.Cycle()
@@ -70,7 +70,8 @@ func (c *Chip8) Run() {
 	}
 }
 
-func (c *Chip8) RenderDisplay(disp *[]uint8) {
+// RenderDisplay presents the current display to the screen via the SDL2 renderer.
+func (c *Chip8) RenderDisplay() {
 	c.renderer.SetDrawColor(0, 0, 0, 255)
 	c.renderer.Clear()
 
@@ -78,7 +79,7 @@ func (c *Chip8) RenderDisplay(disp *[]uint8) {
 
 	for y := int32(0); y < display.Chip8Height; y++ {
 		for x := int32(0); x < display.Chip8Width; x++ {
-			if (*disp)[y*display.Chip8Width+x] != 0 {
+			if c.display[y*display.Chip8Width+x] != 0 {
 				c.renderer.FillRect(&sdl.Rect{
 					X: x * display.DisplayScale,
 					Y: y * display.DisplayScale,
@@ -159,26 +160,4 @@ func (c *Chip8) executeInstruction() {
 	default:
 		log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 	}
-}
-
-type Opcode uint16
-
-func (oc Opcode) nnn() uint16 {
-	return uint16(oc & 0x0FFF)
-}
-
-func (oc Opcode) nn() uint8 {
-	return uint8(oc & 0x00FF)
-}
-
-func (oc Opcode) n() uint8 {
-	return uint8(oc & 0x000F)
-}
-
-func (oc Opcode) x() uint8 {
-	return uint8((oc & 0x0F00) >> 8)
-}
-
-func (oc Opcode) y() uint8 {
-	return uint8((oc & 0x00F0) >> 4)
 }

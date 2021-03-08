@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -69,7 +70,7 @@ func (c *Chip8) Run() {
 		}
 
 		c.Cycle()
-		//time.Sleep(17 * time.Millisecond) // remove this
+		time.Sleep(17 * time.Millisecond) // remove this
 	}
 }
 
@@ -155,6 +156,8 @@ func (c *Chip8) executeInstruction() {
 		}
 	case 0xA000:
 		c.cpu.ExecANNN()
+	case 0xD000:
+		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xF000:
 		switch c.cpu.opcode.nn() {
 		case 0x55:

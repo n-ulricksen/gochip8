@@ -1,6 +1,8 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // CPU used by the Chip-8 emulator
 type CPU struct {
@@ -85,6 +87,7 @@ func (cpu *CPU) Exec3XNN() {
 	nn := cpu.opcode.nn()
 
 	fmt.Printf("%#x: %#x SE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
+
 	if cpu.v[x] == nn {
 		cpu.pc += 2
 	}
@@ -189,6 +192,42 @@ func (cpu *CPU) ExecANNN() {
 	fmt.Printf("%#x: %#x LD I, %#x\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.i = nnn
+}
+
+// DXYN - DRW VX, VY, nibble
+// Display an n-byte sprite starting at memory location I, at display location
+// (VX, VY). Set VF if collision occurs. Sprites are XORed into the existing
+// display.
+func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+	n := cpu.opcode.n()
+
+	fmt.Printf("%#x: %#x DRW V%d, V%d, %#x\n", cpu.pc-2, cpu.opcode, x, y, n)
+
+	spriteMem := (*memory)[cpu.i:]
+
+	for iy := uint8(0); iy < n; iy++ {
+		for ix := uint8(0); ix < 8; ix++ {
+			xpos := int(x) + int(ix)
+			ypos := int(y) + int(iy)
+			if xpos >= Chip8Width || ypos >= Chip8Height {
+				continue
+			}
+
+			// XOR sprite to the display.
+			oldpixel := (*display)[ypos*Chip8Width+xpos]
+			newpixel := (spriteMem[iy] >> (7 - ix)) & 0x01
+			(*display)[ypos*Chip8Width+xpos] ^= newpixel
+
+			// Set carry flag if any pixels are changed to unset.
+			flipped := uint8(0)
+			if oldpixel == 1 && newpixel == 1 {
+				flipped = 1
+			}
+			cpu.v[0xF] = flipped
+		}
+	}
 }
 
 // FX55 - LD [I], VX

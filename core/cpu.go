@@ -230,6 +230,29 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 	}
 }
 
+// FX0A - LD VX, key
+// Wait for a key press, store the value of the key in VX.
+func (cpu *CPU) ExecFX0A(keys []uint8) {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD V%d, key\n", cpu.pc-2, cpu.opcode, x)
+
+	var pressed uint8 = 0xFF
+	for i, keystate := range keys {
+		if keystate == 1 {
+			pressed = uint8(i)
+			break
+		}
+	}
+
+	if pressed == 0xFF {
+		// Block by decrementing the program counter.
+		cpu.pc -= 2
+	} else {
+		cpu.v[x] = pressed
+	}
+}
+
 // FX55 - LD [I], VX
 // Store registers V0 through VX in memory starting at location I.
 func (cpu *CPU) ExecFX55(memory *[]uint8) {

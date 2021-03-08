@@ -19,24 +19,34 @@ const (
 
 // The Chip8 emulator
 type Chip8 struct {
-	mem      []byte
-	cpu      *CPU
-	display  []uint8
-	renderer *sdl.Renderer
+	mem       []byte // RAM
+	cpu       *CPU
+	display   []uint8 // emulator display
+	keys      []uint8 // current state of each key
+	renderer  *sdl.Renderer
+	isRunning bool
 }
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
 func NewChip8() *Chip8 {
 	w, h := Chip8Width, Chip8Height
 
+	// Initialize memory.
 	memory := make([]byte, memorySize)
 	copy(memory[characterSpritesOffset:], characterSprites)
 
+	// Initialize SDL.
+	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
+		log.Fatal("Unable to initialize SDL", err)
+	}
+
 	return &Chip8{
-		mem:      memory,
-		cpu:      NewCPU(),
-		display:  make([]uint8, w*h),
-		renderer: NewDisplayRenderer(),
+		mem:       memory,
+		cpu:       NewCPU(),
+		display:   make([]uint8, w*h),
+		keys:      make([]uint8, 16),
+		renderer:  NewDisplayRenderer(),
+		isRunning: true,
 	}
 }
 
@@ -58,24 +68,30 @@ func (c *Chip8) LoadRom(path string) {
 
 // Run begins execution of program instructions.
 func (c *Chip8) Run() {
+	defer c.renderer.Destroy()
+	defer sdl.Quit()
+
 	vBlankTime := chip8frequency / VBlankFreq
-	cycle := 0
+	cycles := 0
 
-	for {
-		cycle++
+	for c.isRunning {
+		cycles++
 
-		if cycle > vBlankTime {
-			cycle = 0
-			c.RenderDisplay()
+		if cycles > vBlankTime {
+			cycles = 0
+			c.renderDisplay()
 		}
 
-		c.Cycle()
+		c.cycle()
+
+		c.pollSdlEvents()
+
 		time.Sleep(17 * time.Millisecond) // remove this
 	}
 }
 
-// RenderDisplay presents the current display to the screen via the SDL2 renderer.
-func (c *Chip8) RenderDisplay() {
+// renderDisplay presents the current display to the screen via the SDL2 renderer.
+func (c *Chip8) renderDisplay() {
 	c.renderer.SetDrawColor(0, 0, 0, 255)
 	c.renderer.Clear()
 
@@ -97,8 +113,32 @@ func (c *Chip8) RenderDisplay() {
 	c.renderer.Present()
 }
 
-// Cycle spins the CPU, executing instructions from RAM.
-func (c *Chip8) Cycle() {
+// pollSdlEvents checks for keyboard events.
+func (c *Chip8) pollSdlEvents() {
+	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+		switch t := event.(type) {
+		case *sdl.QuitEvent:
+			c.isRunning = false
+		case *sdl.KeyboardEvent:
+			scancode := t.Keysym.Scancode
+			switch t.Type {
+			case sdl.KEYDOWN:
+				if i, ok := keybinds[int(scancode)]; ok {
+					c.keys[i] = 1
+				}
+			case sdl.KEYUP:
+				if i, ok := keybinds[int(scancode)]; ok {
+					c.keys[i] = 0
+				}
+			}
+		}
+	}
+
+	fmt.Println("keyboard statec.pollSdlEvents:", c.keys)
+}
+
+// cycle spins the CPU, executing instructions from RAM.
+func (c *Chip8) cycle() {
 	c.getNextInstruction()
 
 	// Increment the program counter
@@ -160,6 +200,8 @@ func (c *Chip8) executeInstruction() {
 		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xF000:
 		switch c.cpu.opcode.nn() {
+		case 0x0A:
+			c.cpu.ExecFX0A(c.keys)
 		case 0x55:
 			c.cpu.ExecFX55(&c.mem)
 		case 0x65:

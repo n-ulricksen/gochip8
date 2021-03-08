@@ -7,7 +7,7 @@ import (
 )
 
 // The path to the ROM used to test our emulator.
-var rompath string = "./roms/BLINKY"
+var rompath string = "./roms/CONNECT4"
 
 func main() {
 	chip8 := core.NewChip8()

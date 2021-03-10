@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 // CPU used by the Chip-8 emulator
@@ -34,6 +36,11 @@ func NewCPU() *CPU {
 		st:     0,
 		opcode: 0x0000,
 	}
+}
+
+func init() {
+	// "random" numbers needed by 0xCXNN instruction.
+	rand.Seed(time.Now().UnixNano())
 }
 
 func (cpu *CPU) decrementTimers() {
@@ -214,6 +221,18 @@ func (cpu *CPU) ExecANNN() {
 	fmt.Printf("%#x: %#x LD I, %#x\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.i = nnn
+}
+
+// CXNN - RND VX, byte
+// Set VX to the result of (rand(0-255) AND NN)
+func (cpu *CPU) ExecCXNN() {
+	x := cpu.opcode.x()
+	nn := cpu.opcode.nn()
+
+	fmt.Printf("%#x: %#x RND V%d, byte\n", cpu.pc-2, cpu.opcode, x)
+
+	// set v[x] to (rand(0xFF) & NN)
+	cpu.v[x] = uint8(rand.Intn(256)) & nn
 }
 
 // DXYN - DRW VX, VY, nibble

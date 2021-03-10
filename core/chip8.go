@@ -201,6 +201,8 @@ func (c *Chip8) executeInstruction() {
 		}
 	case 0xA000:
 		c.cpu.ExecANNN()
+	case 0xC000:
+		c.cpu.ExecCXNN()
 	case 0xD000:
 		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xF000:

@@ -122,6 +122,19 @@ func (cpu *CPU) Exec4XNN() {
 	}
 }
 
+// 5XY0 - SE VX, VY
+// Skip next instruction if VX == VY.
+func (cpu *CPU) Exec5XY0() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SE V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	if cpu.v[x] == cpu.v[y] {
+		cpu.pc += 2
+	}
+}
+
 // 6XNN - LD VX, byte
 // Load the value NN into register VX.
 func (cpu *CPU) Exec6XNN() {
@@ -175,6 +188,24 @@ func (cpu *CPU) Exec8XY3() {
 	fmt.Printf("%#x: %#x XOR V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	cpu.v[x] = cpu.v[x] ^ cpu.v[y]
+}
+
+// 8XY4 - ADD VX, VY
+// Set VX to result of VX + VY. Set VF = 1 if carry (result > 255).
+func (cpu *CPU) Exec8XY4() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x ADD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	sum16 := uint16(cpu.v[x]) + uint16(cpu.v[y])
+	if sum16 > 0xFF {
+		cpu.v[0xF] = 1
+	} else {
+		cpu.v[0xF] = 0
+	}
+
+	cpu.v[x] = uint8(sum16)
 }
 
 // 8XY6 - SHR VX {, VY}
@@ -268,6 +299,30 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 			}
 			cpu.v[0xF] = flipped
 		}
+	}
+}
+
+// EX9E - SKP VX
+// Skip next instruction if VX key is pressed.
+func (cpu *CPU) ExecEX9E(keys []uint8) {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x SKP V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	if keys[int(x)] == 1 {
+		cpu.pc += 2
+	}
+}
+
+// EXA1 - SKNP VX
+// Skip next instruction if VX key is not pressed.
+func (cpu *CPU) ExecEXA1(keys []uint8) {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x SKNP V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	if keys[int(x)] == 0 {
+		cpu.pc += 2
 	}
 }
 

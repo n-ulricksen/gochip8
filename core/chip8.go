@@ -136,8 +136,6 @@ func (c *Chip8) pollSdlEvents() {
 			}
 		}
 	}
-
-	fmt.Println("keyboard statec.pollSdlEvents:", c.keys)
 }
 
 // cycle spins the CPU, executing instructions from RAM.
@@ -150,7 +148,14 @@ func (c *Chip8) cycle() {
 	// Execute the instruction
 	c.executeInstruction()
 
-	//fmt.Printf("CPU: %#v\n\n", *cpu)
+	// Debug: print mem
+	//for i, b := range c.mem {
+	//fmt.Printf("%#x: %#x\t", i, b)
+	//if i%8 == 0 {
+	//fmt.Println()
+	//}
+	//}
+	//fmt.Println()
 }
 
 // getNextInstruction loads the next 2 byte instruction into the CPU from memory.
@@ -180,6 +185,8 @@ func (c *Chip8) executeInstruction() {
 		c.cpu.Exec3XNN()
 	case 0x4000:
 		c.cpu.Exec4XNN()
+	case 0x5000:
+		c.cpu.Exec5XY0()
 	case 0x6000:
 		c.cpu.Exec6XNN()
 	case 0x7000:
@@ -192,6 +199,8 @@ func (c *Chip8) executeInstruction() {
 			c.cpu.Exec8XY2()
 		case 0x3:
 			c.cpu.Exec8XY3()
+		case 0x4:
+			c.cpu.Exec8XY4()
 		case 0x6:
 			c.cpu.Exec8XY6()
 		case 0xE:
@@ -205,6 +214,15 @@ func (c *Chip8) executeInstruction() {
 		c.cpu.ExecCXNN()
 	case 0xD000:
 		c.cpu.ExecDXYN(&c.mem, &c.display)
+	case 0xE000:
+		switch c.cpu.opcode.nn() {
+		case 0x9E:
+			c.cpu.ExecEX9E(c.keys)
+		case 0xA1:
+			c.cpu.ExecEXA1(c.keys)
+		default:
+			c.invalidOpcode()
+		}
 	case 0xF000:
 		switch c.cpu.opcode.nn() {
 		case 0x07:

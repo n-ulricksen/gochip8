@@ -201,6 +201,8 @@ func (c *Chip8) executeInstruction() {
 			c.cpu.Exec8XY3()
 		case 0x4:
 			c.cpu.Exec8XY4()
+		case 0x5:
+			c.cpu.Exec8XY5()
 		case 0x6:
 			c.cpu.Exec8XY6()
 		case 0xE:

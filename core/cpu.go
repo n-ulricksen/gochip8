@@ -208,6 +208,23 @@ func (cpu *CPU) Exec8XY4() {
 	cpu.v[x] = uint8(sum16)
 }
 
+// 8XY5 - SUB VX, VY
+// Set VX to result of VX - VY. Set VF = 0 if borrow, else VF = 1.
+func (cpu *CPU) Exec8XY5() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SUB V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	if cpu.v[y] > cpu.v[x] {
+		cpu.v[0xF] = 0
+	} else {
+		cpu.v[0xF] = 0
+	}
+
+	cpu.v[x] -= cpu.v[y]
+}
+
 // 8XY6 - SHR VX {, VY}
 // Store the value of VY shifted right one bit in register VX. Set register VF to
 // the least significant bit prior to shift.
@@ -309,7 +326,7 @@ func (cpu *CPU) ExecEX9E(keys []uint8) {
 
 	fmt.Printf("%#x: %#x SKP V%d\n", cpu.pc-2, cpu.opcode, x)
 
-	if keys[int(x)] == 1 {
+	if keys[int(cpu.v[x])] == 1 {
 		cpu.pc += 2
 	}
 }
@@ -321,7 +338,7 @@ func (cpu *CPU) ExecEXA1(keys []uint8) {
 
 	fmt.Printf("%#x: %#x SKNP V%d\n", cpu.pc-2, cpu.opcode, x)
 
-	if keys[int(x)] == 0 {
+	if keys[int(cpu.v[x])] == 0 {
 		cpu.pc += 2
 	}
 }

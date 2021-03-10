@@ -170,7 +170,7 @@ func (c *Chip8) executeInstruction() {
 		case 0x0EE:
 			c.cpu.Exec00EE()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
+			c.invalidOpcode()
 		}
 	case 0x1000:
 		c.cpu.Exec1NNN()
@@ -197,7 +197,7 @@ func (c *Chip8) executeInstruction() {
 		case 0xE:
 			c.cpu.Exec8XYE()
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
+			c.invalidOpcode()
 		}
 	case 0xA000:
 		c.cpu.ExecANNN()
@@ -222,9 +222,15 @@ func (c *Chip8) executeInstruction() {
 		case 0x65:
 			c.cpu.ExecFX65(&c.mem)
 		default:
-			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
+			c.invalidOpcode()
 		}
 	default:
-		log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
+		c.invalidOpcode()
 	}
+}
+
+// invalidOpcode prints an error message displaying the invalid opcode held in
+// the cpu, and then terminates execution of the emulator.
+func (c *Chip8) invalidOpcode() {
+	log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 }

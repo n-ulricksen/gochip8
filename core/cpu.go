@@ -36,6 +36,15 @@ func NewCPU() *CPU {
 	}
 }
 
+func (cpu *CPU) decrementTimers() {
+	if cpu.dt > 0 {
+		cpu.dt--
+	}
+	if cpu.st > 0 {
+		cpu.st--
+	}
+}
+
 // Chip-8 instructions found at:
 // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#00E0
 
@@ -89,6 +98,19 @@ func (cpu *CPU) Exec3XNN() {
 	fmt.Printf("%#x: %#x SE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
 
 	if cpu.v[x] == nn {
+		cpu.pc += 2
+	}
+}
+
+// 4XNN - SNE VX, byte
+// Skip next instruction if VX != NN.
+func (cpu *CPU) Exec4XNN() {
+	x := cpu.opcode.x()
+	nn := cpu.opcode.nn()
+
+	fmt.Printf("%#x: %#x SNE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
+
+	if cpu.v[x] != nn {
 		cpu.pc += 2
 	}
 }
@@ -230,6 +252,16 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 	}
 }
 
+// FX07 - LD VX, DT
+// Set VX to the value of the delay timer.
+func (cpu *CPU) ExecFX07() {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD V%d, DT\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.v[x] = cpu.dt
+}
+
 // FX0A - LD VX, key
 // Wait for a key press, store the value of the key in VX.
 func (cpu *CPU) ExecFX0A(keys []uint8) {
@@ -251,6 +283,48 @@ func (cpu *CPU) ExecFX0A(keys []uint8) {
 	} else {
 		cpu.v[x] = pressed
 	}
+}
+
+// FX15 - LD DT, VX
+// Set the delay timer to the value of VX.
+func (cpu *CPU) ExecFX15() {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD DT, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.dt = cpu.v[x]
+}
+
+// FX1E - ADD I, VX
+// Add the values of I and VX, store the result in I.
+func (cpu *CPU) ExecFX1E() {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x ADD I, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.i = cpu.i + uint16(cpu.v[x])
+}
+
+// FX29 - LD F, VX
+// Set I to the location of the sprite data corresponding to value of VX.
+func (cpu *CPU) ExecFX29(memory *[]uint8) {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD F, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.i = characterSpritesOffset + uint16(cpu.v[x])*characterSpriteBytes
+}
+
+// FX33 - LD B, VX
+// Store the binary representation of VX in memory at I, I+1, I+2 (hunreds, tens, ones).
+func (cpu *CPU) ExecFX33(memory *[]uint8) {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD B, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	(*memory)[cpu.i] = cpu.v[x] / 100
+	(*memory)[cpu.i+1] = (cpu.v[x] % 100) / 10
+	(*memory)[cpu.i+2] = cpu.v[x] % 10
 }
 
 // FX55 - LD [I], VX
@@ -277,14 +351,4 @@ func (cpu *CPU) ExecFX65(memory *[]uint8) {
 		cpu.v[i] = (*memory)[int(cpu.i)+i]
 	}
 	cpu.i = cpu.i + uint16(x) + 1
-}
-
-// FX1E - ADD I, VX
-// Add the values of I and VX, store the result in I.
-func (cpu *CPU) ExecFX1E() {
-	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x ADD I, V%d\n", cpu.pc-2, cpu.opcode, x)
-
-	cpu.i = cpu.i + uint16(cpu.v[x])
 }

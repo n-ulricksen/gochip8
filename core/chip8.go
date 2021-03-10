@@ -14,6 +14,7 @@ const (
 	memorySize             uint16 = 4096
 	programEntryOffset     uint16 = 0x200
 	characterSpritesOffset uint16 = 0x100
+	characterSpriteBytes          = 5
 	chip8frequency                = 60 * 8
 )
 
@@ -77,12 +78,14 @@ func (c *Chip8) Run() {
 	for c.isRunning {
 		cycles++
 
+		c.cycle()
+
 		if cycles > vBlankTime {
 			cycles = 0
 			c.renderDisplay()
-		}
 
-		c.cycle()
+			c.cpu.decrementTimers()
+		}
 
 		c.pollSdlEvents()
 
@@ -175,6 +178,8 @@ func (c *Chip8) executeInstruction() {
 		c.cpu.Exec2NNN()
 	case 0x3000:
 		c.cpu.Exec3XNN()
+	case 0x4000:
+		c.cpu.Exec4XNN()
 	case 0x6000:
 		c.cpu.Exec6XNN()
 	case 0x7000:
@@ -200,14 +205,22 @@ func (c *Chip8) executeInstruction() {
 		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xF000:
 		switch c.cpu.opcode.nn() {
+		case 0x07:
+			c.cpu.ExecFX07()
 		case 0x0A:
 			c.cpu.ExecFX0A(c.keys)
+		case 0x15:
+			c.cpu.ExecFX15()
+		case 0x1E:
+			c.cpu.ExecFX1E()
+		case 0x29:
+			c.cpu.ExecFX29(&c.mem)
+		case 0x33:
+			c.cpu.ExecFX33(&c.mem)
 		case 0x55:
 			c.cpu.ExecFX55(&c.mem)
 		case 0x65:
 			c.cpu.ExecFX65(&c.mem)
-		case 0x1E:
-			c.cpu.ExecFX1E()
 		default:
 			log.Fatalf("Invalid opcode: %#v\n", c.cpu.opcode)
 		}

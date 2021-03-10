@@ -89,7 +89,7 @@ func (c *Chip8) Run() {
 
 		c.pollSdlEvents()
 
-		time.Sleep(17 * time.Millisecond) // remove this
+		time.Sleep(5 * time.Millisecond) // remove this
 	}
 }
 
@@ -195,6 +195,8 @@ func (c *Chip8) executeInstruction() {
 		switch c.cpu.opcode.n() {
 		case 0x0:
 			c.cpu.Exec8XY0()
+		case 0x1:
+			c.cpu.Exec8XY1()
 		case 0x2:
 			c.cpu.Exec8XY2()
 		case 0x3:
@@ -205,6 +207,8 @@ func (c *Chip8) executeInstruction() {
 			c.cpu.Exec8XY5()
 		case 0x6:
 			c.cpu.Exec8XY6()
+		case 0x7:
+			c.cpu.Exec8XY7()
 		case 0xE:
 			c.cpu.Exec8XYE()
 		default:

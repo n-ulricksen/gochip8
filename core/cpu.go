@@ -168,6 +168,17 @@ func (cpu *CPU) Exec8XY0() {
 	cpu.v[x] = cpu.v[y]
 }
 
+// 8XY1 - OR VX, VY
+// Set VX to result of VX OR VY.
+func (cpu *CPU) Exec8XY1() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x OR V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	cpu.v[x] |= cpu.v[y]
+}
+
 // 8XY2 - AND VX, VY
 // Store the result of VX AND VY to register VX.
 func (cpu *CPU) Exec8XY2() {
@@ -241,6 +252,23 @@ func (cpu *CPU) Exec8XY6() {
 		cpu.v[0xF] = 0
 	}
 	cpu.v[x] = cpu.v[y] >> 1
+}
+
+// 8XY7 - SUBN VX, VY
+// Set VX to the result of VY - VX. Set VF = 0 if borrow, else VF = 1.
+func (cpu *CPU) Exec8XY7() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SUBN V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	// Set carry flag if needed.
+	if cpu.v[x] > cpu.v[y] {
+		cpu.v[0xF] = 0
+	} else {
+		cpu.v[0xF] = 1
+	}
+	cpu.v[x] = cpu.v[y] - cpu.v[x]
 }
 
 // 8XYE - SHL VX {, VY}
@@ -428,7 +456,6 @@ func (cpu *CPU) ExecFX55(memory *[]uint8) {
 	for i := 0; i <= int(x); i++ {
 		(*memory)[int(cpu.i)+i] = cpu.v[i]
 	}
-	cpu.i = cpu.i + uint16(x) + 1
 }
 
 // FX65 - LD VX, [I]
@@ -441,5 +468,4 @@ func (cpu *CPU) ExecFX65(memory *[]uint8) {
 	for i := 0; i <= int(x); i++ {
 		cpu.v[i] = (*memory)[int(cpu.i)+i]
 	}
-	cpu.i = cpu.i + uint16(x) + 1
 }

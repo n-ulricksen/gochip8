@@ -219,7 +219,7 @@ func (cpu *CPU) Exec8XY5() {
 	if cpu.v[y] > cpu.v[x] {
 		cpu.v[0xF] = 0
 	} else {
-		cpu.v[0xF] = 0
+		cpu.v[0xF] = 1
 	}
 
 	cpu.v[x] -= cpu.v[y]

@@ -336,6 +336,7 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 	fmt.Printf("%#x: %#x DRW V%d, V%d, %#x\n", cpu.pc-2, cpu.opcode, x, y, n)
 
 	spriteMem := (*memory)[cpu.i:]
+	flipped := uint8(0)
 
 	for iy := uint8(0); iy < n; iy++ {
 		for ix := uint8(0); ix < 8; ix++ {
@@ -354,14 +355,15 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 			newpixel := (spriteMem[iy] >> (7 - ix)) & 0x01
 			(*display)[ypos*Chip8Width+xpos] ^= newpixel
 
-			// Set carry flag if any pixels are changed to unset.
-			flipped := uint8(0)
+			// Keep track if any pixels are unset.
 			if oldpixel == 1 && newpixel == 1 {
 				flipped = 1
 			}
-			cpu.v[0xF] = flipped
 		}
 	}
+
+	// Set carry flag if any pixels were changed to unset.
+	cpu.v[0xF] = flipped
 }
 
 // EX9E - SKP VX

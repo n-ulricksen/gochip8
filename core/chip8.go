@@ -219,6 +219,8 @@ func (c *Chip8) executeInstruction() {
 		default:
 			c.invalidOpcode()
 		}
+	case 0x9000:
+		c.cpu.Exec9XY0()
 	case 0xA000:
 		c.cpu.ExecANNN()
 	case 0xC000:

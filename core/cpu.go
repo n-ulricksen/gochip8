@@ -289,6 +289,19 @@ func (cpu *CPU) Exec8XYE() {
 	cpu.v[x] = cpu.v[y] << 1
 }
 
+// 9XY0 - SNE VX, VY
+// Skip next instruction if VX != VY.
+func (cpu *CPU) Exec9XY0() {
+	x := cpu.opcode.x()
+	y := cpu.opcode.y()
+
+	fmt.Printf("%#x: %#x SNE V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
+
+	if cpu.v[x] != cpu.v[y] {
+		cpu.pc += 2
+	}
+}
+
 // ANNN - LD I, addr
 // Store the value of nnn in register I.
 func (cpu *CPU) ExecANNN() {

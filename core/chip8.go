@@ -72,6 +72,7 @@ func (c *Chip8) Run() {
 	defer c.renderer.Destroy()
 	defer sdl.Quit()
 
+	lastDrawTime := time.Now()
 	vBlankTime := chip8frequency / VBlankFreq
 	cycles := 0
 
@@ -84,12 +85,16 @@ func (c *Chip8) Run() {
 			cycles = 0
 			c.renderDisplay()
 
+			// delay every 8 cycles to keep CPU steady
+			elapsed := time.Now().Sub(lastDrawTime)
+			timePerCycles := (time.Duration(vBlankTime) * time.Second / time.Duration(chip8frequency))
+			time.Sleep(timePerCycles - elapsed)
+			lastDrawTime = time.Now()
+
 			c.cpu.decrementTimers()
 		}
 
 		c.pollSdlEvents()
-
-		time.Sleep(5 * time.Millisecond) // remove this
 	}
 }
 

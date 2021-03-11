@@ -414,6 +414,16 @@ func (cpu *CPU) ExecFX15() {
 	cpu.dt = cpu.v[x]
 }
 
+// FX18 - LD ST, VX
+// Set the sound timer to the value of VX.
+func (cpu *CPU) ExecFX18() {
+	x := cpu.opcode.x()
+
+	fmt.Printf("%#x: %#x LD ST, V%d\n", cpu.pc-2, cpu.opcode, x)
+
+	cpu.st = cpu.v[x]
+}
+
 // FX1E - ADD I, VX
 // Add the values of I and VX, store the result in I.
 func (cpu *CPU) ExecFX1E() {

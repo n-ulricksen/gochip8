@@ -237,6 +237,8 @@ func (c *Chip8) executeInstruction() {
 			c.cpu.ExecFX0A(c.keys)
 		case 0x15:
 			c.cpu.ExecFX15()
+		case 0x18:
+			c.cpu.ExecFX18()
 		case 0x1E:
 			c.cpu.ExecFX1E()
 		case 0x29:

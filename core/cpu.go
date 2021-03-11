@@ -341,8 +341,12 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 		for ix := uint8(0); ix < 8; ix++ {
 			xpos := int(cpu.v[x]) + int(ix)
 			ypos := int(cpu.v[y]) + int(iy)
-			if xpos >= Chip8Width || ypos >= Chip8Height {
-				continue
+
+			for xpos >= Chip8Width {
+				xpos -= Chip8Width
+			}
+			for ypos >= Chip8Height {
+				ypos -= Chip8Height
 			}
 
 			// XOR sprite to the display.

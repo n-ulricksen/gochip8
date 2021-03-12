@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 const (
@@ -16,6 +17,8 @@ const (
 	characterSpritesOffset uint16 = 0x100
 	characterSpriteBytes          = 5
 	chip8frequency                = 60 * 8
+	fontpath                      = "./fonts/DotGothic16-Regular.ttf"
+	fontsize                      = 32
 )
 
 // The Chip8 emulator
@@ -25,11 +28,13 @@ type Chip8 struct {
 	display   []uint8 // emulator display
 	keys      []uint8 // current state of each key
 	renderer  *sdl.Renderer
+	font      *ttf.Font
 	isRunning bool
+	isDebug   bool
 }
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
-func NewChip8() *Chip8 {
+func NewChip8(debug bool) *Chip8 {
 	w, h := Chip8Width, Chip8Height
 
 	// Initialize memory.
@@ -38,7 +43,16 @@ func NewChip8() *Chip8 {
 
 	// Initialize SDL.
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
-		log.Fatal("Unable to initialize SDL", err)
+		log.Fatal("Unable to initialize SDL\n", err)
+	}
+	if err := ttf.Init(); err != nil {
+		log.Fatal("Unable to initialize TTF\n", err)
+	}
+
+	// Load font.
+	font, err := ttf.OpenFont(fontpath, fontsize)
+	if err != nil {
+		log.Fatal("Unable to load font\n", err)
 	}
 
 	return &Chip8{
@@ -46,8 +60,10 @@ func NewChip8() *Chip8 {
 		cpu:       NewCPU(),
 		display:   make([]uint8, w*h),
 		keys:      make([]uint8, 16),
-		renderer:  NewDisplayRenderer(),
+		renderer:  NewDisplayRenderer(debug),
+		font:      font,
 		isRunning: true,
+		isDebug:   debug,
 	}
 }
 
@@ -70,6 +86,8 @@ func (c *Chip8) LoadRom(path string) {
 // Run begins execution of program instructions.
 func (c *Chip8) Run() {
 	defer c.renderer.Destroy()
+	defer c.font.Close()
+	defer ttf.Quit()
 	defer sdl.Quit()
 
 	lastDrawTime := time.Now()
@@ -103,7 +121,7 @@ func (c *Chip8) renderDisplay() {
 	c.renderer.SetDrawColor(0, 0, 0, 255)
 	c.renderer.Clear()
 
-	c.renderer.SetDrawColor(0, 255, 0, 255)
+	c.renderer.SetDrawColor(0, 255, 200, 255)
 
 	for y := int32(0); y < Chip8Height; y++ {
 		for x := int32(0); x < Chip8Width; x++ {
@@ -118,7 +136,36 @@ func (c *Chip8) renderDisplay() {
 		}
 	}
 
+	if c.isDebug {
+		c.renderDebugDisplay()
+	}
+
 	c.renderer.Present()
+}
+
+func (c *Chip8) renderDebugDisplay() {
+	c.renderer.SetDrawColor(50, 50, 50, 255)
+	debugRect := &sdl.Rect{X: 0, Y: EmulatorHeight, W: EmulatorWidth, H: DebugHeight}
+	c.renderer.FillRect(debugRect)
+
+	drawcolor := sdl.Color{R: 255, G: 0, B: 180, A: 255}
+	surface, err := c.font.RenderUTF8Solid("testing123: hello world", drawcolor)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer surface.Free()
+
+	texture, err := c.renderer.CreateTextureFromSurface(surface)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer texture.Destroy()
+
+	x := int32(0)
+	y := int32(EmulatorHeight + 10)
+	w := surface.W
+	h := surface.H
+	c.renderer.Copy(texture, nil, &sdl.Rect{X: x, Y: y, W: w, H: h})
 }
 
 // pollSdlEvents checks for keyboard events.

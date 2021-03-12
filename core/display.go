@@ -13,11 +13,17 @@ const (
 	DisplayScale   = 10
 	EmulatorWidth  = Chip8Width * DisplayScale
 	EmulatorHeight = Chip8Height * DisplayScale
+	DebugHeight    = 256
 )
 
-func NewDisplayRenderer() *sdl.Renderer {
+func NewDisplayRenderer(debug bool) *sdl.Renderer {
+	height := int32(EmulatorHeight)
+	if debug {
+		height += DebugHeight
+	}
+
 	window, err := sdl.CreateWindow("Chip-8 Emulator", sdl.WINDOWPOS_UNDEFINED,
-		sdl.WINDOWPOS_UNDEFINED, EmulatorWidth, EmulatorHeight, sdl.WINDOW_SHOWN)
+		sdl.WINDOWPOS_UNDEFINED, EmulatorWidth, height, sdl.WINDOW_SHOWN)
 	if err != nil {
 		log.Fatal("NewDisplayRenderer error:", err)
 	}

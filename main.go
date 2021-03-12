@@ -9,19 +9,23 @@ import (
 
 // The path to the ROM used to test our emulator.
 var (
-	rompath  string = "./roms/CONNECT4"
+	rompath  string = "./roms/BRIX"
 	testpath string = "./test/BC_test.ch8"
 )
 
-var flagtest bool
+var (
+	flagtest  bool
+	flagdebug bool
+)
 
 func init() {
 	flag.BoolVar(&flagtest, "t", false, "Load the emulator test ROM")
+	flag.BoolVar(&flagdebug, "d", false, "Print debug info to the screen")
 	flag.Parse()
 }
 
 func main() {
-	chip8 := core.NewChip8()
+	chip8 := core.NewChip8(flagdebug)
 
 	if flagtest {
 		fmt.Printf("Loading test ROM from %s\n", testpath)

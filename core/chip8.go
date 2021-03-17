@@ -31,6 +31,8 @@ type Chip8 struct {
 	font      *ttf.Font
 	isRunning bool
 	isDebug   bool
+	ophistory []string // history of cpu ops: `address: op, mneumonic`
+	opindex   int      // insertion point in ophistory for next op
 }
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
@@ -64,6 +66,8 @@ func NewChip8(debug bool) *Chip8 {
 		font:      font,
 		isRunning: true,
 		isDebug:   debug,
+		ophistory: make([]string, 100),
+		opindex:   0,
 	}
 }
 
@@ -216,92 +220,141 @@ func (c *Chip8) getNextInstruction() {
 	c.cpu.opcode = Opcode(binary.BigEndian.Uint16(bx))
 }
 
+// addOpHistoryItem adds an operation string to the Chip-8 ophistory slice at
+// at the appropriate index.
+func (c *Chip8) addOpHistoryItem(op string) {
+	fmt.Print(op)
+	c.ophistory[c.opindex] = op
+	c.opindex = (c.opindex + 1) % len(c.ophistory)
+}
+
 // executeInstruction executes the appropriate instruction based on the opcode
 // currently loaded into the CPU.
 func (c *Chip8) executeInstruction() {
+	var op string
+
+	x := c.cpu.opcode.x()
+	y := c.cpu.opcode.y()
+	n := c.cpu.opcode.n()
+	nn := c.cpu.opcode.nn()
+	nnn := c.cpu.opcode.nnn()
+
 	switch c.cpu.opcode & 0xF000 {
 	case 0x0000:
-		switch c.cpu.opcode.nnn() {
+		switch nnn {
 		case 0x0E0:
+			op = fmt.Sprintf("%#x: %#x CLS\n", c.cpu.pc-2, c.cpu.opcode)
 			c.cpu.Exec00E0(&c.display)
 		case 0x0EE:
+			op = fmt.Sprintf("%#x: %#x RET\n", c.cpu.pc-2, c.cpu.opcode)
 			c.cpu.Exec00EE()
 		default:
 			c.invalidOpcode()
 		}
 	case 0x1000:
+		op = fmt.Sprintf("%#x: %#x JP %#v\n", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.Exec1NNN()
 	case 0x2000:
+		op = fmt.Sprintf("%#x: %#x CALL %#v\n", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.Exec2NNN()
 	case 0x3000:
+		op = fmt.Sprintf("%#x: %#x SE V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec3XNN()
 	case 0x4000:
+		op = fmt.Sprintf("%#x: %#x SNE V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec4XNN()
 	case 0x5000:
+		op = fmt.Sprintf("%#x: %#x SE V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 		c.cpu.Exec5XY0()
 	case 0x6000:
+		op = fmt.Sprintf("%#x: %#x LD V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec6XNN()
 	case 0x7000:
+		op = fmt.Sprintf("%#x: %#x ADD V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec7XNN()
 	case 0x8000:
-		switch c.cpu.opcode.n() {
+		switch n {
 		case 0x0:
+			op = fmt.Sprintf("%#x: %#x LD V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY0()
 		case 0x1:
+			op = fmt.Sprintf("%#x: %#x OR V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY1()
 		case 0x2:
+			op = fmt.Sprintf("%#x: %#x AND V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY2()
 		case 0x3:
+			op = fmt.Sprintf("%#x: %#x XOR V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY3()
 		case 0x4:
+			op = fmt.Sprintf("%#x: %#x ADD V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY4()
 		case 0x5:
+			op = fmt.Sprintf("%#x: %#x SUB V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY5()
 		case 0x6:
+			op = fmt.Sprintf("%#x: %#x SHR V%d {, V%d}\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY6()
 		case 0x7:
+			op = fmt.Sprintf("%#x: %#x SUBN V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY7()
 		case 0xE:
+			op = fmt.Sprintf("%#x: %#x SHL V%d {, V%d}\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XYE()
 		default:
 			c.invalidOpcode()
 		}
 	case 0x9000:
+		op = fmt.Sprintf("%#x: %#x SNE V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
 		c.cpu.Exec9XY0()
 	case 0xA000:
+		op = fmt.Sprintf("%#x: %#x LD I, %#x\n", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.ExecANNN()
 	case 0xC000:
+		op = fmt.Sprintf("%#x: %#x RND V%d, byte\n", c.cpu.pc-2, c.cpu.opcode, x)
 		c.cpu.ExecCXNN()
 	case 0xD000:
+		op = fmt.Sprintf("%#x: %#x DRW V%d, V%d, %#x\n", c.cpu.pc-2, c.cpu.opcode, x, y, n)
 		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xE000:
-		switch c.cpu.opcode.nn() {
+		switch nn {
 		case 0x9E:
+			op = fmt.Sprintf("%#x: %#x SKP V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecEX9E(c.keys)
 		case 0xA1:
+			op = fmt.Sprintf("%#x: %#x SKNP V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecEXA1(c.keys)
 		default:
 			c.invalidOpcode()
 		}
 	case 0xF000:
-		switch c.cpu.opcode.nn() {
+		switch nn {
 		case 0x07:
+			op = fmt.Sprintf("%#x: %#x LD V%d, DT\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX07()
 		case 0x0A:
+			op = fmt.Sprintf("%#x: %#x LD V%d, key\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX0A(c.keys)
 		case 0x15:
+			op = fmt.Sprintf("%#x: %#x LD DT, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX15()
 		case 0x18:
+			op = fmt.Sprintf("%#x: %#x LD ST, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX18()
 		case 0x1E:
+			op = fmt.Sprintf("%#x: %#x ADD I, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX1E()
 		case 0x29:
+			op = fmt.Sprintf("%#x: %#x LD F, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX29(&c.mem)
 		case 0x33:
+			op = fmt.Sprintf("%#x: %#x LD B, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX33(&c.mem)
 		case 0x55:
+			op = fmt.Sprintf("%#x: %#x LD [I], V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX55(&c.mem)
 		case 0x65:
+			op = fmt.Sprintf("%#x: %#x LD V%d, [I]\n", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX65(&c.mem)
 		default:
 			c.invalidOpcode()
@@ -309,6 +362,8 @@ func (c *Chip8) executeInstruction() {
 	default:
 		c.invalidOpcode()
 	}
+
+	c.addOpHistoryItem(op)
 }
 
 // invalidOpcode prints an error message displaying the invalid opcode held in

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 )
@@ -58,8 +57,6 @@ func (cpu *CPU) decrementTimers() {
 // 00E0 - CLS
 // Clear the display.
 func (cpu *CPU) Exec00E0(disp *[]uint8) {
-	fmt.Printf("%#x: %#x CLS\n", cpu.pc-2, cpu.opcode)
-
 	for i := range *disp {
 		(*disp)[i] = 0
 	}
@@ -68,8 +65,6 @@ func (cpu *CPU) Exec00E0(disp *[]uint8) {
 // 00EE - RET
 // Return from a subroutine.
 func (cpu *CPU) Exec00EE() {
-	fmt.Printf("%#x: %#x RET\n", cpu.pc-2, cpu.opcode)
-
 	cpu.sp--
 	cpu.pc = cpu.stack[cpu.sp]
 }
@@ -78,9 +73,6 @@ func (cpu *CPU) Exec00EE() {
 // Set the program counter to NNN.
 func (cpu *CPU) Exec1NNN() {
 	nnn := cpu.opcode.nnn()
-
-	fmt.Printf("%#x: %#x JP %#v\n", cpu.pc-2, cpu.opcode, nnn)
-
 	cpu.pc = nnn
 }
 
@@ -88,8 +80,6 @@ func (cpu *CPU) Exec1NNN() {
 // Call subroutine at NNN.
 func (cpu *CPU) Exec2NNN() {
 	nnn := cpu.opcode.nnn()
-
-	fmt.Printf("%#x: %#x CALL %#v\n", cpu.pc-2, cpu.opcode, nnn)
 
 	cpu.stack[cpu.sp] = cpu.pc
 	cpu.sp++
@@ -102,8 +92,6 @@ func (cpu *CPU) Exec3XNN() {
 	x := cpu.opcode.x()
 	nn := cpu.opcode.nn()
 
-	fmt.Printf("%#x: %#x SE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
-
 	if cpu.v[x] == nn {
 		cpu.pc += 2
 	}
@@ -114,8 +102,6 @@ func (cpu *CPU) Exec3XNN() {
 func (cpu *CPU) Exec4XNN() {
 	x := cpu.opcode.x()
 	nn := cpu.opcode.nn()
-
-	fmt.Printf("%#x: %#x SNE V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
 
 	if cpu.v[x] != nn {
 		cpu.pc += 2
@@ -128,8 +114,6 @@ func (cpu *CPU) Exec5XY0() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x SE V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	if cpu.v[x] == cpu.v[y] {
 		cpu.pc += 2
 	}
@@ -141,8 +125,6 @@ func (cpu *CPU) Exec6XNN() {
 	x := cpu.opcode.x()
 	nn := cpu.opcode.nn()
 
-	fmt.Printf("%#x: %#x LD V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
-
 	cpu.v[x] = nn
 }
 
@@ -151,8 +133,6 @@ func (cpu *CPU) Exec6XNN() {
 func (cpu *CPU) Exec7XNN() {
 	x := cpu.opcode.x()
 	nn := cpu.opcode.nn()
-
-	fmt.Printf("%#x: %#x ADD V%d, %#v\n", cpu.pc-2, cpu.opcode, x, nn)
 
 	cpu.v[x] += nn
 }
@@ -163,8 +143,6 @@ func (cpu *CPU) Exec8XY0() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x LD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	cpu.v[x] = cpu.v[y]
 }
 
@@ -173,8 +151,6 @@ func (cpu *CPU) Exec8XY0() {
 func (cpu *CPU) Exec8XY1() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
-
-	fmt.Printf("%#x: %#x OR V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	cpu.v[x] |= cpu.v[y]
 }
@@ -185,8 +161,6 @@ func (cpu *CPU) Exec8XY2() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x AND V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	cpu.v[x] = cpu.v[x] & cpu.v[y]
 }
 
@@ -196,8 +170,6 @@ func (cpu *CPU) Exec8XY3() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x XOR V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	cpu.v[x] = cpu.v[x] ^ cpu.v[y]
 }
 
@@ -206,8 +178,6 @@ func (cpu *CPU) Exec8XY3() {
 func (cpu *CPU) Exec8XY4() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
-
-	fmt.Printf("%#x: %#x ADD V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	sum16 := uint16(cpu.v[x]) + uint16(cpu.v[y])
 	if sum16 > 0xFF {
@@ -225,8 +195,6 @@ func (cpu *CPU) Exec8XY5() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x SUB V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	if cpu.v[y] > cpu.v[x] {
 		cpu.v[0xF] = 0
 	} else {
@@ -243,8 +211,6 @@ func (cpu *CPU) Exec8XY6() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x SHR V%d {, V%d}\n", cpu.pc-2, cpu.opcode, x, y)
-
 	// Set carry flag if needed.
 	if cpu.v[x]%2 == 1 {
 		cpu.v[0xF] = 1
@@ -259,8 +225,6 @@ func (cpu *CPU) Exec8XY6() {
 func (cpu *CPU) Exec8XY7() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
-
-	fmt.Printf("%#x: %#x SUBN V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
 
 	// Set carry flag if needed.
 	if cpu.v[x] > cpu.v[y] {
@@ -278,8 +242,6 @@ func (cpu *CPU) Exec8XYE() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x SHL V%d {, V%d}\n", cpu.pc-2, cpu.opcode, x, y)
-
 	// Set carry flag if needed.
 	if cpu.v[x] >= 128 {
 		cpu.v[0xF] = 1
@@ -295,8 +257,6 @@ func (cpu *CPU) Exec9XY0() {
 	x := cpu.opcode.x()
 	y := cpu.opcode.y()
 
-	fmt.Printf("%#x: %#x SNE V%d, V%d\n", cpu.pc-2, cpu.opcode, x, y)
-
 	if cpu.v[x] != cpu.v[y] {
 		cpu.pc += 2
 	}
@@ -307,8 +267,6 @@ func (cpu *CPU) Exec9XY0() {
 func (cpu *CPU) ExecANNN() {
 	nnn := cpu.opcode.nnn()
 
-	fmt.Printf("%#x: %#x LD I, %#x\n", cpu.pc-2, cpu.opcode, nnn)
-
 	cpu.i = nnn
 }
 
@@ -317,8 +275,6 @@ func (cpu *CPU) ExecANNN() {
 func (cpu *CPU) ExecCXNN() {
 	x := cpu.opcode.x()
 	nn := cpu.opcode.nn()
-
-	fmt.Printf("%#x: %#x RND V%d, byte\n", cpu.pc-2, cpu.opcode, x)
 
 	// set v[x] to (rand(0xFF) & NN)
 	cpu.v[x] = uint8(rand.Intn(256)) & nn
@@ -333,15 +289,15 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 	y := cpu.opcode.y()
 	n := cpu.opcode.n()
 
-	fmt.Printf("%#x: %#x DRW V%d, V%d, %#x\n", cpu.pc-2, cpu.opcode, x, y, n)
-
 	spriteMem := (*memory)[cpu.i:]
 	flipped := uint8(0)
 
+	var xpos, ypos int
+	var oldpixel, newpixel uint8
 	for iy := uint8(0); iy < n; iy++ {
 		for ix := uint8(0); ix < 8; ix++ {
-			xpos := int(cpu.v[x]) + int(ix)
-			ypos := int(cpu.v[y]) + int(iy)
+			xpos = int(cpu.v[x]) + int(ix)
+			ypos = int(cpu.v[y]) + int(iy)
 
 			for xpos >= Chip8Width {
 				xpos -= Chip8Width
@@ -351,8 +307,8 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 			}
 
 			// XOR sprite to the display.
-			oldpixel := (*display)[ypos*Chip8Width+xpos]
-			newpixel := (spriteMem[iy] >> (7 - ix)) & 0x01
+			oldpixel = (*display)[ypos*Chip8Width+xpos]
+			newpixel = (spriteMem[iy] >> (7 - ix)) & 0x01
 			(*display)[ypos*Chip8Width+xpos] ^= newpixel
 
 			// Keep track if any pixels are unset.
@@ -371,8 +327,6 @@ func (cpu *CPU) ExecDXYN(memory *[]uint8, display *[]uint8) {
 func (cpu *CPU) ExecEX9E(keys []uint8) {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x SKP V%d\n", cpu.pc-2, cpu.opcode, x)
-
 	if keys[int(cpu.v[x])] == 1 {
 		cpu.pc += 2
 	}
@@ -382,8 +336,6 @@ func (cpu *CPU) ExecEX9E(keys []uint8) {
 // Skip next instruction if VX key is not pressed.
 func (cpu *CPU) ExecEXA1(keys []uint8) {
 	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x SKNP V%d\n", cpu.pc-2, cpu.opcode, x)
 
 	if keys[int(cpu.v[x])] == 0 {
 		cpu.pc += 2
@@ -395,8 +347,6 @@ func (cpu *CPU) ExecEXA1(keys []uint8) {
 func (cpu *CPU) ExecFX07() {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD V%d, DT\n", cpu.pc-2, cpu.opcode, x)
-
 	cpu.v[x] = cpu.dt
 }
 
@@ -404,8 +354,6 @@ func (cpu *CPU) ExecFX07() {
 // Wait for a key press, store the value of the key in VX.
 func (cpu *CPU) ExecFX0A(keys []uint8) {
 	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x LD V%d, key\n", cpu.pc-2, cpu.opcode, x)
 
 	var pressed uint8 = 0xFF
 	for i, keystate := range keys {
@@ -428,8 +376,6 @@ func (cpu *CPU) ExecFX0A(keys []uint8) {
 func (cpu *CPU) ExecFX15() {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD DT, V%d\n", cpu.pc-2, cpu.opcode, x)
-
 	cpu.dt = cpu.v[x]
 }
 
@@ -437,8 +383,6 @@ func (cpu *CPU) ExecFX15() {
 // Set the sound timer to the value of VX.
 func (cpu *CPU) ExecFX18() {
 	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x LD ST, V%d\n", cpu.pc-2, cpu.opcode, x)
 
 	cpu.st = cpu.v[x]
 }
@@ -448,8 +392,6 @@ func (cpu *CPU) ExecFX18() {
 func (cpu *CPU) ExecFX1E() {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x ADD I, V%d\n", cpu.pc-2, cpu.opcode, x)
-
 	cpu.i = cpu.i + uint16(cpu.v[x])
 }
 
@@ -458,8 +400,6 @@ func (cpu *CPU) ExecFX1E() {
 func (cpu *CPU) ExecFX29(memory *[]uint8) {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD F, V%d\n", cpu.pc-2, cpu.opcode, x)
-
 	cpu.i = characterSpritesOffset + uint16(cpu.v[x])*characterSpriteBytes
 }
 
@@ -467,8 +407,6 @@ func (cpu *CPU) ExecFX29(memory *[]uint8) {
 // Store the binary representation of VX in memory at I, I+1, I+2 (hunreds, tens, ones).
 func (cpu *CPU) ExecFX33(memory *[]uint8) {
 	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x LD B, V%d\n", cpu.pc-2, cpu.opcode, x)
 
 	(*memory)[cpu.i] = cpu.v[x] / 100
 	(*memory)[cpu.i+1] = (cpu.v[x] % 100) / 10
@@ -480,8 +418,6 @@ func (cpu *CPU) ExecFX33(memory *[]uint8) {
 func (cpu *CPU) ExecFX55(memory *[]uint8) {
 	x := cpu.opcode.x()
 
-	fmt.Printf("%#x: %#x LD [I], V%d\n", cpu.pc-2, cpu.opcode, x)
-
 	for i := 0; i <= int(x); i++ {
 		(*memory)[int(cpu.i)+i] = cpu.v[i]
 	}
@@ -491,8 +427,6 @@ func (cpu *CPU) ExecFX55(memory *[]uint8) {
 // Load values from memory starting at location I into registers V0 through VX.
 func (cpu *CPU) ExecFX65(memory *[]uint8) {
 	x := cpu.opcode.x()
-
-	fmt.Printf("%#x: %#x LD V%d, [I]\n", cpu.pc-2, cpu.opcode, x)
 
 	for i := 0; i <= int(x); i++ {
 		cpu.v[i] = (*memory)[int(cpu.i)+i]

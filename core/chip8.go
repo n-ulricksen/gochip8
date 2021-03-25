@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
@@ -18,7 +19,8 @@ const (
 	characterSpriteBytes          = 5
 	chip8frequency                = 60 * 8
 	fontpath                      = "./fonts/DotGothic16-Regular.ttf"
-	fontsize                      = 32
+	fontsize                      = 12
+	ophistorysize                 = 100
 )
 
 // The Chip8 emulator
@@ -32,7 +34,7 @@ type Chip8 struct {
 	isRunning bool
 	isDebug   bool
 	ophistory []string // history of cpu ops: `address: op, mneumonic`
-	opindex   int      // insertion point in ophistory for next op
+	opindex   int      // ophistory index: current op
 }
 
 // NewChip8 creates a new Chip8 emulator with 4KB RAM.
@@ -66,7 +68,7 @@ func NewChip8(debug bool) *Chip8 {
 		font:      font,
 		isRunning: true,
 		isDebug:   debug,
-		ophistory: make([]string, 100),
+		ophistory: make([]string, ophistorysize),
 		opindex:   0,
 	}
 }
@@ -103,11 +105,11 @@ func (c *Chip8) Run() {
 
 		c.cycle()
 
-		if cycles > vBlankTime {
+		if cycles >= vBlankTime {
 			cycles = 0
 			c.renderDisplay()
 
-			// delay every 8 cycles to keep CPU steady
+			// delay every few to keep CPU steady
 			elapsed := time.Now().Sub(lastDrawTime)
 			timePerCycles := (time.Duration(vBlankTime) * time.Second / time.Duration(chip8frequency))
 			time.Sleep(timePerCycles - elapsed)
@@ -152,8 +154,22 @@ func (c *Chip8) renderDebugDisplay() {
 	debugRect := &sdl.Rect{X: 0, Y: EmulatorHeight, W: EmulatorWidth, H: DebugHeight}
 	c.renderer.FillRect(debugRect)
 
+	// Get the most recent operations
+	opcount := 14
+	ops := make([]string, opcount)
+	for i := 0; i < opcount; i++ {
+		index := c.opindex - i
+		if index < 0 {
+			index += len(c.ophistory)
+		}
+		ops[len(ops)-i-1] = c.ophistory[index]
+	}
+
+	opswrapped := strings.Join(ops, "\n")
+
 	drawcolor := sdl.Color{R: 255, G: 0, B: 180, A: 255}
-	surface, err := c.font.RenderUTF8Solid("testing123: hello world", drawcolor)
+	//surface, err := c.font.RenderUTF8Solid(ops, drawcolor)
+	surface, err := c.font.RenderUTF8BlendedWrapped(opswrapped, drawcolor, EmulatorWidth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -166,7 +182,7 @@ func (c *Chip8) renderDebugDisplay() {
 	defer texture.Destroy()
 
 	x := int32(0)
-	y := int32(EmulatorHeight + 10)
+	y := int32(EmulatorHeight)
 	w := surface.W
 	h := surface.H
 	c.renderer.Copy(texture, nil, &sdl.Rect{X: x, Y: y, W: w, H: h})
@@ -223,9 +239,9 @@ func (c *Chip8) getNextInstruction() {
 // addOpHistoryItem adds an operation string to the Chip-8 ophistory slice at
 // at the appropriate index.
 func (c *Chip8) addOpHistoryItem(op string) {
-	fmt.Print(op)
-	c.ophistory[c.opindex] = op
+	//fmt.Print(op)
 	c.opindex = (c.opindex + 1) % len(c.ophistory)
+	c.ophistory[c.opindex] = op
 }
 
 // executeInstruction executes the appropriate instruction based on the opcode
@@ -243,86 +259,86 @@ func (c *Chip8) executeInstruction() {
 	case 0x0000:
 		switch nnn {
 		case 0x0E0:
-			op = fmt.Sprintf("%#x: %#x CLS\n", c.cpu.pc-2, c.cpu.opcode)
+			op = fmt.Sprintf("%#x: %#x CLS", c.cpu.pc-2, c.cpu.opcode)
 			c.cpu.Exec00E0(&c.display)
 		case 0x0EE:
-			op = fmt.Sprintf("%#x: %#x RET\n", c.cpu.pc-2, c.cpu.opcode)
+			op = fmt.Sprintf("%#x: %#x RET", c.cpu.pc-2, c.cpu.opcode)
 			c.cpu.Exec00EE()
 		default:
 			c.invalidOpcode()
 		}
 	case 0x1000:
-		op = fmt.Sprintf("%#x: %#x JP %#v\n", c.cpu.pc-2, c.cpu.opcode, nnn)
+		op = fmt.Sprintf("%#x: %#x JP %#v", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.Exec1NNN()
 	case 0x2000:
-		op = fmt.Sprintf("%#x: %#x CALL %#v\n", c.cpu.pc-2, c.cpu.opcode, nnn)
+		op = fmt.Sprintf("%#x: %#x CALL %#v", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.Exec2NNN()
 	case 0x3000:
-		op = fmt.Sprintf("%#x: %#x SE V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
+		op = fmt.Sprintf("%#x: %#x SE V%d, %#v", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec3XNN()
 	case 0x4000:
-		op = fmt.Sprintf("%#x: %#x SNE V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
+		op = fmt.Sprintf("%#x: %#x SNE V%d, %#v", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec4XNN()
 	case 0x5000:
-		op = fmt.Sprintf("%#x: %#x SE V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+		op = fmt.Sprintf("%#x: %#x SE V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 		c.cpu.Exec5XY0()
 	case 0x6000:
-		op = fmt.Sprintf("%#x: %#x LD V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
+		op = fmt.Sprintf("%#x: %#x LD V%d, %#v", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec6XNN()
 	case 0x7000:
-		op = fmt.Sprintf("%#x: %#x ADD V%d, %#v\n", c.cpu.pc-2, c.cpu.opcode, x, nn)
+		op = fmt.Sprintf("%#x: %#x ADD V%d, %#v", c.cpu.pc-2, c.cpu.opcode, x, nn)
 		c.cpu.Exec7XNN()
 	case 0x8000:
 		switch n {
 		case 0x0:
-			op = fmt.Sprintf("%#x: %#x LD V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x LD V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY0()
 		case 0x1:
-			op = fmt.Sprintf("%#x: %#x OR V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x OR V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY1()
 		case 0x2:
-			op = fmt.Sprintf("%#x: %#x AND V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x AND V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY2()
 		case 0x3:
-			op = fmt.Sprintf("%#x: %#x XOR V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x XOR V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY3()
 		case 0x4:
-			op = fmt.Sprintf("%#x: %#x ADD V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x ADD V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY4()
 		case 0x5:
-			op = fmt.Sprintf("%#x: %#x SUB V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x SUB V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY5()
 		case 0x6:
-			op = fmt.Sprintf("%#x: %#x SHR V%d {, V%d}\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x SHR V%d {, V%d}", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY6()
 		case 0x7:
-			op = fmt.Sprintf("%#x: %#x SUBN V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x SUBN V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XY7()
 		case 0xE:
-			op = fmt.Sprintf("%#x: %#x SHL V%d {, V%d}\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+			op = fmt.Sprintf("%#x: %#x SHL V%d {, V%d}", c.cpu.pc-2, c.cpu.opcode, x, y)
 			c.cpu.Exec8XYE()
 		default:
 			c.invalidOpcode()
 		}
 	case 0x9000:
-		op = fmt.Sprintf("%#x: %#x SNE V%d, V%d\n", c.cpu.pc-2, c.cpu.opcode, x, y)
+		op = fmt.Sprintf("%#x: %#x SNE V%d, V%d", c.cpu.pc-2, c.cpu.opcode, x, y)
 		c.cpu.Exec9XY0()
 	case 0xA000:
-		op = fmt.Sprintf("%#x: %#x LD I, %#x\n", c.cpu.pc-2, c.cpu.opcode, nnn)
+		op = fmt.Sprintf("%#x: %#x LD I, %#x", c.cpu.pc-2, c.cpu.opcode, nnn)
 		c.cpu.ExecANNN()
 	case 0xC000:
-		op = fmt.Sprintf("%#x: %#x RND V%d, byte\n", c.cpu.pc-2, c.cpu.opcode, x)
+		op = fmt.Sprintf("%#x: %#x RND V%d, byte", c.cpu.pc-2, c.cpu.opcode, x)
 		c.cpu.ExecCXNN()
 	case 0xD000:
-		op = fmt.Sprintf("%#x: %#x DRW V%d, V%d, %#x\n", c.cpu.pc-2, c.cpu.opcode, x, y, n)
+		op = fmt.Sprintf("%#x: %#x DRW V%d, V%d, %#x", c.cpu.pc-2, c.cpu.opcode, x, y, n)
 		c.cpu.ExecDXYN(&c.mem, &c.display)
 	case 0xE000:
 		switch nn {
 		case 0x9E:
-			op = fmt.Sprintf("%#x: %#x SKP V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x SKP V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecEX9E(c.keys)
 		case 0xA1:
-			op = fmt.Sprintf("%#x: %#x SKNP V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x SKNP V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecEXA1(c.keys)
 		default:
 			c.invalidOpcode()
@@ -330,31 +346,31 @@ func (c *Chip8) executeInstruction() {
 	case 0xF000:
 		switch nn {
 		case 0x07:
-			op = fmt.Sprintf("%#x: %#x LD V%d, DT\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD V%d, DT", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX07()
 		case 0x0A:
-			op = fmt.Sprintf("%#x: %#x LD V%d, key\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD V%d, key", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX0A(c.keys)
 		case 0x15:
-			op = fmt.Sprintf("%#x: %#x LD DT, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD DT, V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX15()
 		case 0x18:
-			op = fmt.Sprintf("%#x: %#x LD ST, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD ST, V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX18()
 		case 0x1E:
-			op = fmt.Sprintf("%#x: %#x ADD I, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x ADD I, V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX1E()
 		case 0x29:
-			op = fmt.Sprintf("%#x: %#x LD F, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD F, V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX29(&c.mem)
 		case 0x33:
-			op = fmt.Sprintf("%#x: %#x LD B, V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD B, V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX33(&c.mem)
 		case 0x55:
-			op = fmt.Sprintf("%#x: %#x LD [I], V%d\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD [I], V%d", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX55(&c.mem)
 		case 0x65:
-			op = fmt.Sprintf("%#x: %#x LD V%d, [I]\n", c.cpu.pc-2, c.cpu.opcode, x)
+			op = fmt.Sprintf("%#x: %#x LD V%d, [I]", c.cpu.pc-2, c.cpu.opcode, x)
 			c.cpu.ExecFX65(&c.mem)
 		default:
 			c.invalidOpcode()

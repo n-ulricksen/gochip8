@@ -9,18 +9,19 @@ import (
 
 // The path to the ROM used to test our emulator.
 var (
-	rompath  string = "./roms/BRIX"
 	testpath string = "./test/BC_test.ch8"
 )
 
 var (
 	flagtest  bool
 	flagdebug bool
+	rompath   string
 )
 
 func init() {
 	flag.BoolVar(&flagtest, "t", false, "Load the emulator test ROM")
 	flag.BoolVar(&flagdebug, "d", false, "Print debug info to the screen")
+	flag.StringVar(&rompath, "p", "./roms/TETRIS", "Specify the path of the ROM to load")
 	flag.Parse()
 }
 
